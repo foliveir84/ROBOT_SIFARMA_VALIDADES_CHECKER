@@ -1,10 +1,13 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import tempfile
 import os
+import base64
 from pdf_processor import process_pdf_to_dataframe
 from csv_processor import process_csv_to_dataframe
 from data_merger import merge_stock_data
+from pdf_exporter import generate_pdf
 
 # --- UI STYLE ---
 def apply_custom_style():
@@ -175,19 +178,110 @@ def main():
                 hide_index=True
             )
             
-            # Export Button (Excel)
+            # Export Options
             import io
             
+            # Excel Generation
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 final_df.to_excel(writer, index=False, sheet_name='Analise_Stock')
             
-            st.download_button(
-                label="📥 Exportar Relatório (Excel)",
-                data=buffer.getvalue(),
-                file_name="analise_stock_robot.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.download_button(
+                    label="📥 Exportar Excel",
+                    data=buffer.getvalue(),
+                    file_name="analise_stock_robot.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                
+            with col2:
+                if st.button("🖨️ Imprimir PDF", use_container_width=True):
+                    with st.spinner("Gerando PDF..."):
+                        pdf_buffer = generate_pdf(final_df)
+                        pdf_bytes = pdf_buffer.getvalue()
+                        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+                        
+                        # Javascript to open PDF in new tab via Blob and provide a working manual link
+                        pdf_display_js = f"""
+                            <html>
+                            <head>
+                            <style>
+                                body {{
+                                    background-color: transparent;
+                                    color: white;
+                                    font-family: "Source Sans Pro", sans-serif;
+                                }}
+                                .btn {{
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    padding: 0.5rem 1rem;
+                                    background-color: #ff4b4b;
+                                    color: white;
+                                    text-decoration: none;
+                                    border-radius: 0.5rem;
+                                    font-weight: 600;
+                                    border: 1px solid rgba(255, 255, 255, 0.2);
+                                    transition: background-color 0.3s;
+                                }}
+                                .btn:hover {{ background-color: #ff2b2b; }}
+                            </style>
+                            </head>
+                            <body>
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                                <span>Se a aba não abrir, clique aqui:</span>
+                                <a id="pdfLink" href="#" target="_blank" class="btn">📄 Abrir PDF em nova aba</a>
+                            </div>
+                            
+                            <script>
+                                function b64toBlob(b64Data, contentType='', sliceSize=512) {{
+                                    const byteCharacters = atob(b64Data);
+                                    const byteArrays = [];
+
+                                    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {{
+                                        const slice = byteCharacters.slice(offset, offset + sliceSize);
+
+                                        const byteNumbers = new Array(slice.length);
+                                        for (let i = 0; i < slice.length; i++) {{
+                                            byteNumbers[i] = slice.charCodeAt(i);
+                                        }}
+
+                                        const byteArray = new Uint8Array(byteNumbers);
+                                        byteArrays.push(byteArray);
+                                    }}
+
+                                    const blob = new Blob(byteArrays, {{type: contentType}});
+                                    return blob;
+                                }}
+
+                                const b64pdf = "{base64_pdf}";
+                                const blob = b64toBlob(b64pdf, "application/pdf");
+                                const blobUrl = URL.createObjectURL(blob);
+                                
+                                const link = document.getElementById('pdfLink');
+                                link.href = blobUrl;
+                                
+                                // Attempt auto-open
+                                window.open(blobUrl, "_blank");
+                            </script>
+                            </body>
+                            </html>
+                        """
+                        # Render component with enough height to show the link
+                        components.html(pdf_display_js, height=100)
+                        
+                        st.success("PDF gerado!")
+                        
+                        st.download_button(
+                            label="⬇️ Baixar PDF",
+                            data=pdf_bytes,
+                            file_name="relatorio_stock.pdf",
+                            mime="application/pdf",
+                            key='pdf-download'
+                        )
             
         except Exception as e:
             st.error(f"Erro na fusão dos dados: {e}")
