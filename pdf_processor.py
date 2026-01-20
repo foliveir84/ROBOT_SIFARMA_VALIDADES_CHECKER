@@ -22,20 +22,15 @@ def process_pdf_to_dataframe(pdf_path):
     current_entry = None
     
     # Regex to capture the main data line.
-    # We assume the Code is exactly 7 digits long, which is standard for CNP.
-    # Structure: Ord(Variable) + Code(7 digits) + Space + Description + "LOTE" + ... + Stock + ... + Date
-    # Note: text extraction merged Ord and Code (e.g., "15323951" -> Ord 1, Code 5323951)
+    # Logic: The Code is ALWAYS the last 7 digits of the initial number block.
+    # The rest (prefix) is the Order Number (Ord).
+    # This handles both "1 5323951" (space) and "15323951" (merged) correctly.
     
-    # \d+ matches Ord
-    # \d{7} matches Code
-    # \s+ match space
-    # (.*?) matches Description (lazy) until "LOTE"
-    # LOTE\s+[^0-9]+? matches "LOTE ÚNICO" or similar non-digit text
-    # \s+(\d+) matches Stock
-    # \s+[A-Z\.]+ matches Pratel (e.g., ROB)
-    # \s+(\d{2}-\d{4}) matches Validade
-    
-    line_regex = re.compile(r'^(\d+)(\d{7})\s+(.*?)LOTE\s+[^0-9]+?\s+(\d+)\s+[A-Z\.]+\s+(\d{2}-\d{4})')
+    # ^(\d+?) matches Ord (lazy, consumes minimum needed)
+    # \s* matches optional space
+    # (\d{7}) matches Code (strict 7 digits)
+    # \s+ matches space separator before Description
+    line_regex = re.compile(r'^(\d+?)\s*(\d{7})\s+(.*?)LOTE\s+[^0-9]+?\s+(\d+)\s+[A-Z\.]+\s+(\d{2}-\d{4})')
 
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:

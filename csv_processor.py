@@ -54,8 +54,8 @@ def process_csv_to_dataframe(csv_path):
     df = df[df[target_code_col] != '']
 
     # Convert Date column to datetime
-    # The format appears to be DD-MM-YYYY
-    df['date_obj'] = pd.to_datetime(df[target_date_col], format='%d-%m-%Y', errors='coerce')
+    # Use dayfirst=True to handle DD/MM/YYYY or DD-MM-YYYY formats robustly
+    df['date_obj'] = pd.to_datetime(df[target_date_col], dayfirst=True, errors='coerce')
     
     # Drop rows with invalid dates if necessary, or keep them? 
     # For now, we drop NaT to ensure sorting works
