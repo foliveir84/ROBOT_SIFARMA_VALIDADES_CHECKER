@@ -17,7 +17,7 @@ Este projeto é uma aplicação web desenvolvida em **Streamlit** destinada a au
 ### A. Processamento de PDF (`pdf_processor.py`)
 - **Biblioteca:** `pdfplumber`.
 - **Desafio:** O PDF original apresenta, por vezes, o número de ordem (`Ord.`) e o `Código` colados (ex: `15323951` em vez de `1 5323951`).
-- **Solução:** Utiliza Regex para identificar padrões de linhas de dados, assumindo que o Código do Produto tem 7 dígitos (padrão CNP) e lidando com descrições que ocupam múltiplas linhas.
+- **Solução:** Utiliza Regex robusta (`^(\d+?)\s*(\d{7})`) que captura os **últimos 7 dígitos** do bloco numérico inicial como Código CNP. Isto garante a extração correta independentemente de existir espaço ou não entre o Nº de Ordem e o Código, resolvendo casos de números colados ou separados.
 - **Campos Extraídos:** Ord., Código, Designação, Stock (Qtd), Validade.
 
 ### B. Processamento de CSV (`csv_processor.py`)
@@ -27,7 +27,7 @@ Este projeto é uma aplicação web desenvolvida em **Streamlit** destinada a au
     2.  Limpa nomes de colunas para garantir consistência.
     3.  **Agrupamento:** Agrupa as linhas por `Código de barras`.
     4.  **Cálculo de Stock:** Conta o número de ocorrências de cada código (`count`).
-    5.  **Cálculo de Validade:** Identifica a data de validade mais antiga (`min`) e formata para `MM-YYYY`.
+    5.  **Cálculo de Validade:** Converte datas com `dayfirst=True` para suportar formatos com barras (`DD/MM/YYYY`) ou hífens. Identifica a data de validade mais antiga (`min`) e formata para `MM-YYYY`.
 
 ### C. Fusão e Análise (`data_merger.py`)
 - **Método:** *Left Join* usando a tabela do PDF como base (Tabela da esquerda) e o CSV como complemento (Tabela da direita).
